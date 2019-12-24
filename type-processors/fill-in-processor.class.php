@@ -24,6 +24,9 @@ class FillInProcessor extends TypeProcessor {
    */
   const CRP_REPORT_SEPARATOR = ' / ';
 
+  private static $contentTypeAlternatives = 'https://h5p.org/x-api/alternatives';
+  private static $contentTypeCaseSensitivity = 'https://h5p.org/x-api/case-sensitivity';
+
   /**
    * Determines options for interaction and generates a human readable HTML
    * report.
@@ -35,10 +38,13 @@ class FillInProcessor extends TypeProcessor {
     $this->setStyle('styles/fill-in.css');
 
     // Generate interaction options
-    $caseMatters = $this->determineCaseMatters($crp[0]);
+    $caseMatters = FALSE;
+    if (isset($extras->extensions->{self::$contentTypeCaseSensitivity})) {
+      $caseMatters = !empty($extras->extensions->{self::$contentTypeCaseSensitivity});
+    }
 
     // Process correct responses and user responses patterns
-    $processedCRPs     = $this->processCRPs($crp, $caseMatters['nextIndex']);
+    $processedCRPs     = $extras->extensions->{self::$contentTypeAlternatives};
     $processedResponse = $this->processResponse($response);
 
     // Build report from description, correct responses and user responses
@@ -87,80 +93,6 @@ class FillInProcessor extends TypeProcessor {
         '<span class="h5p-fill-in-user-response-correct">Your correct answer</span>' .
         '<span class="h5p-fill-in-user-response-wrong">Your incorrect answer</span>' .
       '</div>';
-  }
-
-  /**
-   * Massages correct responses patterns data.
-   * The result is a two dimensional array sorted on placeholder order.
-   *
-   * @param array $crp Correct responses pattern
-   * @param number $strStartIndex Start index of actual response pattern.
-   * Any data before this index is options applied to the tasks, and should not
-   * be processed as part of the correct responses pattern.
-   *
-   * @return array Two dimensional array.
-   *  The first array dimensions is sorted on placeholder order, and the second
-   *  separates between correct answer alternatives.
-   */
-  private function processCRPs($crp, $strStartIndex) {
-
-    // CRPs sorted by placeholder order
-    $sortedCRP = array();
-
-    foreach ($crp as $crpString) {
-
-      // Remove options
-      $pattern = substr($crpString, $strStartIndex);
-
-      // Process correct responses pattern into array
-      $answers = explode(self::RESPONSES_SEPARATOR, $pattern);
-      foreach ($answers as $index => $value) {
-
-        // Create array of correct alternatives at placeholder index
-        if (!isset($sortedCRP[$index])) {
-          $sortedCRP[$index] = array();
-        }
-
-        // Add alternative to placeholder index
-        if (!in_array($value, $sortedCRP[$index])) {
-          $sortedCRP[$index][] = $value;
-        }
-      }
-    }
-    return $sortedCRP;
-  }
-
-  /**
-   * Determine if interaction answer is case sensitive
-   *
-   * @param string $singleCRP A correct responses pattern with encoded option
-   *
-   * @return array Case sensitivity data
-   */
-  private function determineCaseMatters($singleCRP) {
-    $html          = '';
-    $nextIndex     = 0;
-    $caseSensitive = NULL;
-
-    // Check if interaction has case sensitivity option as first option
-    if (strtolower(substr($singleCRP, 1, 13)) === 'case_matters=') {
-      if (strtolower(substr($singleCRP, 14, 5)) === 'false') {
-        $html          = 'caseSensitive = false';
-        $nextIndex     = 20;
-        $caseSensitive = FALSE;
-      }
-      else if (strtolower(substr($singleCRP, 14, 4)) === 'true') {
-        $html          = 'caseSensitive = true';
-        $nextIndex     = 19;
-        $caseSensitive = TRUE;
-      }
-    }
-
-    return array(
-      'html'          => $html,
-      'nextIndex'     => $nextIndex,
-      'caseSensitive' => $caseSensitive
-    );
   }
 
   /**
